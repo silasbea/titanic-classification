@@ -1,0 +1,111 @@
+---
+title: "R Notebook - Classification problem - ML"
+output: html_notebook
+---
+
+
+```{r}
+library(titanic)
+
+head(titanic_train)
+
+```
+```{r}
+library(tidyr)
+library(ggplot2)
+library(corrr)
+library(rsample)
+library(recipes)
+library(parsnip)
+library(yardstick)
+
+
+data <- titanic::titanic_train 
+data_split <- initial_split(data)
+train <- training(data_split)
+test <- testing(data_split)
+
+skimr::skim(train)
+```
+
+Brew a recipe
+```{r}
+recipe(Survived ~. , train) %>% 
+  step_mutate(Survived = ifelse(Survived == 0, "Died", "Survived")) %>% 
+  step_string2factor(Survived) %>% 
+  step_rm(PassengerId, Name, Ticket, Cabin) %>% 
+  step_impute_mean(Age) %>% 
+  step_dummy(all_nominal(), - all_outcomes()) %>% 
+  step_zv(all_predictors()) %>% 
+  step_center(all_predictors(), - all_nominal()) %>% 
+  step_scale(all_predictors(), -all_nominal()) -> recipeed
+  
+```
+Preprocess the recipe
+```{r}
+prep(recipeed) -> data_prep
+
+```
+Next Choose Classification as mode of regression - glm, and fit model
+```{r}
+
+logistic_reg() %>% 
+  set_engine("glm") %>% 
+  set_mode("classification") %>% 
+  fit(Survived ~. , data = bake(data_prep, train)) -> fitted_model
+
+```
+Predict with fitted model using the test data
+```{r}
+fitted_model %>% 
+  predict(new_data = bake(data_prep, test)) #predicted
+```
+```{r}
+fitted_model %>% 
+  predict(new_data = bake(data_prep, test)) %>% #predicted
+  bind_cols(
+    bake(data_prep, test) %>% #unpredicted
+      select(Survived) #to compare side by side
+  ) -> predictions #save in predictions
+
+predictions
+
+```
+
+Now let's create a confusion matrix on predictions
+```{r}
+predictions %>% 
+  conf_mat(.pred_class, Survived)
+```
+
+Let's see metrics - accuracy, precision, recall
+```{r}
+predictions %>% 
+  metrics(.pred_class, Survived)
+```
+
+```{r}
+predictions %>% 
+  metrics(.pred_class, Survived) %>% 
+  select(- .estimator) %>% 
+  filter(.metric == "accuracy") %>% 
+  mutate(.estimate = round(.estimate * 100, 2))
+```
+
+```{r}
+
+predictions %>% 
+  precision(.pred_class, Survived)
+```
+
+```{r}
+predictions %>% 
+  recall(.pred_class, Survived)
+```
+F1 Score
+```{r}
+predictions %>% 
+  f_meas(.pred_class, Survived)
+
+```
+
