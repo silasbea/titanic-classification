@@ -6,4 +6,4 @@ Linear regression or Classification example in R using the in-built titanic data
 install.packages('titanic')
 
 # Accuracy
-Accuracy is seen in Accuracy, Precision, Recall and F1 Score
+Measured in Accuracy, Precision, Recall and F1 Score
